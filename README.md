@@ -1,6 +1,6 @@
 # 📄 Resume ATS Analyzer
 
-An AI-powered **Resume ATS Analyzer** built with **Streamlit** and **Google Gemini 2.5 Flash**.
+An AI-powered **Resume ATS Analyzer** built with **Streamlit** and **Google Gemini 3.6 Flash**.
 
 The application analyzes a resume and provides an estimated **ATS-readiness score out of 100**, detailed scoring breakdown, keyword matching, missing keywords, strengths, detected resume sections, and prioritized recommendations for improvement.
 
