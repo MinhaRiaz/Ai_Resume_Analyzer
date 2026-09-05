@@ -2,6 +2,8 @@
 
 An AI-powered **Resume ATS Analyzer** built with **Streamlit** and **Google Gemini 3.6 Flash**.
 
+> 🚀 **[Try the Live App](https://ai-resume-analyzer-app-1.streamlit.app/)**
+
 The application analyzes a resume and provides an estimated **ATS-readiness score out of 100**, detailed scoring breakdown, keyword matching, missing keywords, strengths, detected resume sections, and prioritized recommendations for improvement.
 
 > **Note:** The score is an ATS-readiness estimate and is not an official score from any specific Applicant Tracking System (ATS) vendor.
@@ -57,9 +59,9 @@ The AI identifies the strongest aspects of the resume, such as:
 
 The application provides actionable recommendations organized by priority:
 
-* High
-* Medium
-* Low
+* 🔴 High
+* 🟡 Medium
+* 🟢 Low
 
 Each recommendation includes:
 
@@ -89,19 +91,19 @@ Supported resume formats:
 * DOCX
 * TXT
 
-PDF files are also sent to Gemini in their original format, allowing Gemini to inspect the document itself in addition to locally extracted text.
+PDF files can also be provided to Gemini in their original format, allowing the AI model to inspect the document in addition to locally extracted text.
 
 ### 🔐 API Key Security
 
 The Gemini API key is **not hardcoded** into the application.
 
-The application reads the key from:
+The application reads:
 
 ```text
 GEMINI_API_KEY
 ```
 
-using Streamlit Secrets or an environment variable.
+from Streamlit Secrets or an environment variable.
 
 ---
 
@@ -134,7 +136,7 @@ The application follows this workflow:
                          │
                          ▼
               ┌──────────────────────┐
-              │ Gemini 2.5 Flash     │
+              │ Gemini 3.6 Flash     │
               │ Analysis             │
               └──────────┬───────────┘
                          │
@@ -165,7 +167,7 @@ The application follows this workflow:
 
 * **Python**
 * **Streamlit** — Web application interface
-* **Google Gemini 2.5 Flash** — AI-powered resume analysis
+* **Google Gemini 3.6 Flash** — AI-powered resume analysis
 * **Google GenAI SDK** — Gemini API integration
 * **PyPDF** — PDF text extraction
 * **python-docx** — DOCX text extraction
@@ -184,17 +186,37 @@ ai-resume-analyzer/
 └── .gitignore
 ```
 
+### `app.py`
+
+Contains the Streamlit user interface, resume processing, Gemini API integration, scoring logic, and result display.
+
+### `requirements.txt`
+
+Contains all Python packages required to run the application.
+
+### `README.md`
+
+Contains project documentation, setup instructions, usage instructions, and deployment information.
+
+### `.gitignore`
+
+Prevents sensitive files, API keys, virtual environments, and unnecessary Python files from being uploaded to GitHub.
+
 ---
 
 # ⚙️ Installation
 
-## 1. Clone the repository
+Follow these steps to run the application on your computer.
+
+## 1. Clone the Repository
+
+Open Command Prompt or PowerShell and run:
 
 ```bash
 git clone https://github.com/YOUR-USERNAME/ai-resume-analyzer.git
 ```
 
-Go into the project directory:
+Move into the project directory:
 
 ```bash
 cd ai-resume-analyzer
@@ -202,7 +224,7 @@ cd ai-resume-analyzer
 
 ---
 
-## 2. Create a virtual environment
+## 2. Create a Virtual Environment
 
 ### Windows
 
@@ -210,7 +232,7 @@ cd ai-resume-analyzer
 python -m venv venv
 ```
 
-Activate it:
+Activate the virtual environment:
 
 ```bash
 venv\Scripts\activate
@@ -230,7 +252,9 @@ source venv/bin/activate
 
 ---
 
-## 3. Install dependencies
+## 3. Install Dependencies
+
+Install all required packages using:
 
 ```bash
 pip install -r requirements.txt
@@ -240,24 +264,22 @@ pip install -r requirements.txt
 
 # 🔑 Gemini API Key Setup
 
-You need a Google Gemini API key to run the application.
+The application requires a Google Gemini API key.
 
-Create your API key through Google's Gemini API/AI Studio service.
-
-Do **not** put the API key directly inside `app.py`.
+The API key should **never be written directly inside `app.py`** or committed to GitHub.
 
 ## Option 1 — Streamlit Secrets
 
-Create:
+For local development, create the following folder inside the project:
 
 ```text
-.streamlit/secrets.toml
+.streamlit/
 ```
 
-Add:
+Inside it, create:
 
-```toml
-GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+```text
+secrets.toml
 ```
 
 Your project should look like:
@@ -268,40 +290,70 @@ ai-resume-analyzer/
 ├── app.py
 ├── requirements.txt
 ├── README.md
+├── .gitignore
 │
 └── .streamlit/
     └── secrets.toml
 ```
 
+Add your API key to `secrets.toml`:
+
+```toml
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+```
+
 ### ⚠️ Important
 
-Never upload `secrets.toml` to GitHub.
-
-Add this to `.gitignore`:
+Never upload:
 
 ```text
 .streamlit/secrets.toml
 ```
 
+to GitHub.
+
+Make sure your `.gitignore` contains:
+
+```text
+.streamlit/secrets.toml
+```
+
+You can also ignore:
+
+```text
+venv/
+__pycache__/
+*.pyc
+.env
+```
+
 ---
 
-# ▶️ Run Locally
+# ▶️ Run the Application Locally
 
-Start the Streamlit application:
+After installing the dependencies and configuring your API key, start the Streamlit application:
 
 ```bash
 streamlit run app.py
 ```
 
-The application will open in your browser.
+Streamlit will start the application locally.
+
+You can normally access it at:
+
+```text
+http://localhost:8501
+```
+
+The application can also open automatically in your default web browser.
 
 ---
 
-# 📤 Using the Application
+# 📤 How to Use the Application
 
-### Step 1 — Upload Resume
+## Step 1 — Upload Your Resume
 
-Upload a resume in one of the supported formats:
+Upload your resume in one of the supported formats:
 
 ```text
 PDF
@@ -309,13 +361,17 @@ DOCX
 TXT
 ```
 
-### Step 2 — Add Job Description
+---
+
+## Step 2 — Add a Job Description
 
 Paste the target job description into the job description field.
 
-This is optional, but strongly recommended because it makes keyword analysis more relevant to the specific position.
+This step is optional, but it is **strongly recommended** because it allows the analyzer to perform more relevant keyword and job-alignment analysis.
 
-### Step 3 — Analyze
+---
+
+## Step 3 — Analyze Your Resume
 
 Click:
 
@@ -323,26 +379,30 @@ Click:
 🔍 Analyze Resume
 ```
 
-### Step 4 — Review Results
+The application sends the required resume information and evaluation prompt to Gemini for analysis.
+
+---
+
+## Step 4 — Review Your Results
 
 The application provides:
 
-* ATS readiness score
-* Score breakdown
-* Recruiter summary
-* Strengths
-* Keyword matches
-* Missing keywords
-* Detected sections
-* Prioritized improvements
+* 🎯 ATS readiness score
+* 📊 Score breakdown
+* 📝 Recruiter summary
+* 💪 Resume strengths
+* 🔑 Matching keywords
+* ⚠️ Missing keywords
+* 📋 Detected resume sections
+* 🛠️ Prioritized improvements
 
 ---
 
 # 📊 Scoring System
 
-The application uses a transparent 100-point scoring model.
+The application uses a transparent **100-point scoring model**.
 
-### 1. ATS Formatting & Parseability — 20 points
+## 1. ATS Formatting & Parseability — 20 Points
 
 Evaluates potential issues involving:
 
@@ -355,19 +415,27 @@ Evaluates potential issues involving:
 * Text extraction
 * ATS readability
 
-### 2. Contact/Header Information — 10 points
+---
 
-Evaluates whether important contact information is clearly presented.
+## 2. Contact/Header Information — 10 Points
 
-### 3. Standard Sections & Organization — 15 points
+Evaluates whether important contact information is clearly presented and easy to identify.
 
-Evaluates the presence and organization of standard resume sections.
+---
 
-### 4. Job Description Keyword Alignment — 20 points
+## 3. Standard Sections & Organization — 15 Points
 
-Compares the resume against the supplied job description.
+Evaluates the presence, naming, organization, and structure of standard resume sections.
 
-### 5. Experience Bullet Quality & Impact — 15 points
+---
+
+## 4. Job Description Keyword Alignment — 20 Points
+
+Compares the resume against the supplied job description and evaluates relevant terminology and skills.
+
+---
+
+## 5. Experience Bullet Quality & Impact — 15 Points
 
 Evaluates:
 
@@ -378,17 +446,23 @@ Evaluates:
 * Clarity
 * Impact
 
-### 6. Skills Section Quality — 10 points
+---
 
-Evaluates the relevance, organization, and clarity of listed skills.
+## 6. Skills Section Quality — 10 Points
 
-### 7. Education/Certifications — 5 points
+Evaluates the relevance, organization, and clarity of the listed skills.
+
+---
+
+## 7. Education/Certifications — 5 Points
 
 Evaluates the presentation and relevance of education and certifications.
 
-### 8. Overall ATS/Recruiter Readiness — 5 points
+---
 
-Provides an overall assessment from an ATS and recruiter perspective.
+## 8. Overall ATS/Recruiter Readiness — 5 Points
+
+Provides an overall assessment from both an ATS and recruiter perspective.
 
 ---
 
@@ -398,12 +472,13 @@ A resume might receive:
 
 ```text
 ATS Readiness Score
+
 78/100
 
 Good
 ```
 
-With results such as:
+Example breakdown:
 
 ```text
 ATS Formatting & Parseability       17/20
@@ -418,17 +493,31 @@ Overall Readiness                    4/5
 Total                               78/100
 ```
 
+The application also provides qualitative feedback explaining why the resume received its score and how it can be improved.
+
+---
+
+# 🌐 Live Application
+
+You can use the deployed application directly without installing Python or configuring an API key locally.
+
+### 🚀 Try the Application
+
+👉 **[Open Resume ATS Analyzer](YOUR_STREAMLIT_APP_URL)**
+
+> Replace `YOUR_STREAMLIT_APP_URL` with your actual Streamlit deployment URL.
+
 ---
 
 # 🔒 Privacy
 
-Resumes can contain sensitive personal and professional information.
+Resumes may contain sensitive personal and professional information.
 
 Users should only upload documents they are authorized to share.
 
-When an analysis is performed, the application sends resume information to the **Google Gemini API** for AI analysis.
+During analysis, relevant resume information may be sent to the **Google Gemini API** for AI processing.
 
-Do not upload confidential documents unless you understand and accept the applicable data-handling policies.
+Do not upload confidential documents unless you understand and accept the applicable data-handling and privacy policies.
 
 ---
 
@@ -448,17 +537,17 @@ Results may vary depending on:
 * Resume content
 * AI interpretation
 
-The application should be used as a resume optimization aid rather than a guarantee of passing an ATS.
+The application should be used as a **resume optimization and analysis aid**, not as a guarantee of passing an ATS.
 
 ---
 
-# 🚀 Deployment on Streamlit Community Cloud
+# ☁️ Deployment on Streamlit Community Cloud
 
-You can deploy the application for free using Streamlit Community Cloud.
+The application can be deployed using **Streamlit Community Cloud**.
 
-## 1. Push the project to GitHub
+## 1. Push the Project to GitHub
 
-Your repository should contain:
+Your GitHub repository should contain:
 
 ```text
 app.py
@@ -473,11 +562,19 @@ Do **not** upload:
 .streamlit/secrets.toml
 ```
 
-or your API key.
+or your Gemini API key.
+
+---
 
 ## 2. Connect GitHub to Streamlit
 
-Create a new application on Streamlit Community Cloud and select your GitHub repository.
+Open Streamlit Community Cloud and sign in with your GitHub account.
+
+Create a new application and select:
+
+* GitHub repository
+* Branch
+* Main file
 
 Set the main file to:
 
@@ -485,9 +582,15 @@ Set the main file to:
 app.py
 ```
 
-## 3. Add the API Secret
+Then deploy the application.
 
-In your Streamlit application's settings, open **Secrets** and add:
+---
+
+## 3. Add the Gemini API Secret
+
+After deployment, open your application's settings and locate **Secrets**.
+
+Add:
 
 ```toml
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
@@ -495,24 +598,52 @@ GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
 
 Save the secret and restart/redeploy the application.
 
+The deployed application will then be able to access the Gemini API without exposing the API key in your GitHub repository.
+
+---
+
+## 4. Add Your Live App URL to README
+
+After successful deployment, Streamlit will provide a URL similar to:
+
+```text
+https://your-app-name.streamlit.app
+```
+
+Copy that URL and replace:
+
+```text
+YOUR_STREAMLIT_APP_URL
+```
+
+in this README.
+
+For example:
+
+```markdown
+👉 **[Open Resume ATS Analyzer](https://your-app-name.streamlit.app)**
+```
+
+This creates a clickable link on your GitHub README.
+
 ---
 
 # 🔮 Future Improvements
 
 Possible future features include:
 
-* Resume rewriting
-* Job-specific resume optimization
-* Cover letter generation
-* Resume keyword highlighting
-* Resume comparison
-* Multiple resume versions
-* Downloadable ATS reports
-* PDF report generation
-* LinkedIn profile optimization
-* Job-role-specific scoring
-* Resume version history
-* More AI model providers
+* ✍️ AI-powered resume rewriting
+* 🎯 Job-specific resume optimization
+* 📝 Cover letter generation
+* 🔑 Resume keyword highlighting
+* 📊 Resume comparison
+* 📄 Multiple resume versions
+* 📥 Downloadable ATS reports
+* 📑 PDF report generation
+* 💼 LinkedIn profile optimization
+* 🎯 Job-role-specific scoring
+* 🕐 Resume version history
+* 🤖 Support for additional AI model providers
 
 ---
 
@@ -520,27 +651,38 @@ Possible future features include:
 
 Contributions are welcome.
 
-To contribute:
+To contribute to the project:
+
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/YOUR-USERNAME/ai-resume-analyzer.git
+```
+
+### 2. Enter the project directory
+
+```bash
 cd ai-resume-analyzer
 ```
 
-Create a new branch:
+### 3. Create a new branch
 
 ```bash
 git checkout -b feature/new-feature
 ```
 
-Make your changes and commit:
+### 4. Make your changes
+
+Implement and test your changes locally.
+
+### 5. Commit your changes
 
 ```bash
 git add .
 git commit -m "Add new feature"
 ```
 
-Push the branch:
+### 6. Push your branch
 
 ```bash
 git push origin feature/new-feature
@@ -554,7 +696,7 @@ Then create a Pull Request on GitHub.
 
 This project is intended for educational and portfolio purposes.
 
-Add an appropriate open-source license if you plan to distribute the project publicly.
+If you plan to distribute this project publicly, consider adding an appropriate open-source license such as the MIT License.
 
 ---
 
@@ -562,18 +704,20 @@ Add an appropriate open-source license if you plan to distribute the project pub
 
 **Minha Khan**
 
-Built with:
+Computer Science Student | AI & Software Development
 
-* Python
-* Streamlit
-* Google Gemini
-* AI-powered resume analysis
+### Built With
+
+* 🐍 Python
+* 🎈 Streamlit
+* ✨ Google Gemini 3.6 Flash
+* 📄 PyPDF
+* 📝 python-docx
 
 ---
 
-## ⭐ If You Find This Project Useful
+# ⭐ Support
 
-Consider giving the repository a ⭐ on GitHub and sharing it with others who are preparing their resumes for ATS-based recruitment.
+If you find this project useful, consider giving the repository a ⭐ on GitHub.
 
-```
-```
+Your feedback and suggestions are also welcome!
