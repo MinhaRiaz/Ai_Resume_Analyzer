@@ -263,7 +263,6 @@ def main() -> None:
     st.caption("Powered by Groq LPUs for ultra-fast analysis")
 
     with st.sidebar:
-        st.header("Settings")
         st.markdown("**Supported:** PDF, DOCX, TXT")
         st.markdown(
             "**Recommended:** Add target job description for keyword scoring."
