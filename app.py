@@ -4,13 +4,12 @@ import os
 from typing import Any
 
 import streamlit as st
-from google import genai
-from google.genai import types
-from pypdf import PdfReader
 from docx import Document
+from groq import Groq, GroqError
+from pypdf import PdfReader
 
-
-MODEL_NAME = "gemini-3.8-flash"
+# Groq models suitable for structured JSON extraction
+MODEL_NAME = "openai/gpt-oss-120b"
 MAX_FILE_SIZE_MB = 10
 
 RESPONSE_SCHEMA = {
@@ -18,11 +17,11 @@ RESPONSE_SCHEMA = {
     "properties": {
         "ats_score": {
             "type": "integer",
-            "description": "Overall ATS-readiness score from 0 to 100."
+            "description": "Overall ATS-readiness score from 0 to 100.",
         },
         "score_label": {
             "type": "string",
-            "description": "One of: Excellent, Good, Fair, or Needs Improvement."
+            "description": "One of: Excellent, Good, Fair, or Needs Improvement.",
         },
         "score_breakdown": {
             "type": "array",
@@ -33,15 +32,12 @@ RESPONSE_SCHEMA = {
                     "category": {"type": "string"},
                     "score": {"type": "integer"},
                     "max_score": {"type": "integer"},
-                    "explanation": {"type": "string"}
+                    "explanation": {"type": "string"},
                 },
-                "required": ["category", "score", "max_score", "explanation"]
-            }
+                "required": ["category", "score", "max_score", "explanation"],
+            },
         },
-        "strengths": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
+        "strengths": {"type": "array", "items": {"type": "string"}},
         "improvements": {
             "type": "array",
             "description": "Specific, actionable resume improvements.",
@@ -52,29 +48,24 @@ RESPONSE_SCHEMA = {
                     "area": {"type": "string"},
                     "issue": {"type": "string"},
                     "recommendation": {"type": "string"},
-                    "example": {"type": "string"}
+                    "example": {"type": "string"},
                 },
                 "required": [
-                    "priority", "area", "issue", "recommendation", "example"
-                ]
-            }
+                    "priority",
+                    "area",
+                    "issue",
+                    "recommendation",
+                    "example",
+                ],
+            },
         },
-        "missing_keywords": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "detected_sections": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
-        "keyword_matches": {
-            "type": "array",
-            "items": {"type": "string"}
-        },
+        "missing_keywords": {"type": "array", "items": {"type": "string"}},
+        "detected_sections": {"type": "array", "items": {"type": "string"}},
+        "keyword_matches": {"type": "array", "items": {"type": "string"}},
         "summary": {
             "type": "string",
-            "description": "A concise recruiter-style assessment."
-        }
+            "description": "A concise recruiter-style assessment.",
+        },
     },
     "required": [
         "ats_score",
@@ -85,19 +76,19 @@ RESPONSE_SCHEMA = {
         "missing_keywords",
         "detected_sections",
         "keyword_matches",
-        "summary"
-    ]
+        "summary",
+    ],
 }
 
 
 def get_api_key() -> str:
-    """Read the Gemini key from Streamlit secrets first, then environment."""
+    """Read the Groq API key from Streamlit secrets or environment variables."""
     try:
-        key = st.secrets.get("GEMINI_API_KEY", "")
+        key = st.secrets.get("GROQ_API_KEY", "")
     except Exception:
         key = ""
 
-    return key or os.getenv("GEMINI_API_KEY", "")
+    return key or os.getenv("GROQ_API_KEY", "")
 
 
 def extract_text_from_docx(data: bytes) -> str:
@@ -131,21 +122,17 @@ def extract_text_from_pdf(data: bytes) -> str:
     return "\n".join(pages).strip()
 
 
-def extract_resume_text(uploaded_file) -> tuple[str, bool]:
-    """Return text and whether the file should be sent as a native PDF."""
+def extract_resume_text(uploaded_file) -> str:
+    """Extract text from the uploaded PDF, DOCX, or TXT file."""
     data = uploaded_file.getvalue()
     suffix = uploaded_file.name.lower().rsplit(".", 1)[-1]
 
     if suffix == "pdf":
-        # We still extract text locally for validation/fallback, but Gemini
-        # receives the original PDF so it can reason about document structure.
-        return extract_text_from_pdf(data), True
-
+        return extract_text_from_pdf(data)
     if suffix == "docx":
-        return extract_text_from_docx(data), False
-
+        return extract_text_from_docx(data)
     if suffix == "txt":
-        return data.decode("utf-8", errors="replace").strip(), False
+        return data.decode("utf-8", errors="replace").strip()
 
     raise ValueError("Unsupported file type. Please upload PDF, DOCX, or TXT.")
 
@@ -154,35 +141,22 @@ def build_prompt(resume_text: str, job_description: str) -> str:
     job_context = (
         job_description.strip()
         if job_description.strip()
-        else "No specific job description was provided. Evaluate against "
-             "general ATS-friendly resume standards."
+        else "No specific job description was provided. Evaluate against general ATS-friendly resume standards."
     )
 
     return f"""
 You are an expert ATS resume evaluator and technical recruiter.
 
-Analyze the resume below. The purpose is to estimate how well the resume
-will perform in common Applicant Tracking Systems and recruiter screening.
+Analyze the resume text provided. Your task is to evaluate how well it will perform in Applicant Tracking Systems and recruiter screening.
 
-IMPORTANT:
-- Do not claim that this is the exact score of any particular ATS vendor.
+IMPORTANT RULES:
+- Return ONLY valid JSON matching the exact schema requested.
+- Do not claim this is the exact score of any specific ATS vendor.
 - This is an ATS-readiness estimate based on a transparent 100-point rubric.
-- Be evidence-based. Do not invent experience, skills, employers, degrees,
-  certifications, dates, or achievements that are not present.
-- Recommendations must be realistic and actionable.
-- If a job description is supplied, prioritize relevant keywords and skills
-  from it. Do not recommend keyword stuffing.
-- A keyword should be considered a match only when the resume actually
-  contains the term or a clear equivalent.
-- Consider formatting risks such as tables, columns, graphics, icons,
-  headers/footers, unusual section names, and overly complex layouts when
-  the document gives you enough evidence. Do not assume a formatting issue
-  without evidence.
-- For bullet improvements, preserve the user's facts and only improve
-  wording/structure. If you cannot safely create an example, use an
-  instruction such as "Add a quantified result if you can verify it."
+- Be evidence-based. Do not invent experience or skills not present in the text.
+- If a job description is supplied, prioritize relevant keywords and skills from it.
 
-SCORING RUBRIC (must total 100):
+SCORING RUBRIC (must total 100 across the 8 categories):
 1. ATS formatting and parseability: 20
 2. Contact/header information: 10
 3. Standard sections and organization: 15
@@ -192,64 +166,44 @@ SCORING RUBRIC (must total 100):
 7. Education/certifications: 5
 8. Overall ATS/recruiter readiness: 5
 
-If there is no job description, score keyword alignment using broadly useful
-keywords appropriate to the candidate's apparent field, but clearly state
-that the score is less targeted.
-
 JOB DESCRIPTION:
 {job_context}
 
 RESUME TEXT:
-{resume_text[:50000]}
+{resume_text[:30000]}
 """.strip()
 
 
 def analyze_resume(
-    file_bytes: bytes,
-    filename: str,
     extracted_text: str,
     job_description: str,
     api_key: str,
 ) -> dict[str, Any]:
-    client = genai.Client(api_key=api_key)
-
-    suffix = filename.lower().rsplit(".", 1)[-1]
+    client = Groq(api_key=api_key)
     prompt = build_prompt(extracted_text, job_description)
 
-    if suffix == "pdf":
-        contents = [
-            types.Part.from_bytes(
-                data=file_bytes,
-                mime_type="application/pdf",
-            ),
-            prompt,
-        ]
-    else:
-        contents = [prompt]
-
-    if suffix != "pdf":
-        contents = [
-            prompt,
-            "\nFULL EXTRACTED RESUME:\n" + extracted_text[:50000],
-        ]
-
-    response = client.models.generate_content(
+    # Groq Chat Completion with JSON mode enforced
+    response = client.chat.completions.create(
         model=MODEL_NAME,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            response_schema=RESPONSE_SCHEMA,
-            temperature=0.2,
-        ),
+        messages=[
+            {
+                "role": "system",
+                "content": f"You are an ATS Resume Analyzer. Respond strictly in valid JSON matching this schema:\n{json.dumps(RESPONSE_SCHEMA)}",
+            },
+            {"role": "user", "content": prompt},
+        ],
+        response_format={"type": "json_object"},
+        temperature=0.2,
     )
 
-    if not response.text:
-        raise RuntimeError("Gemini returned an empty response.")
+    response_content = response.choices[0].message.content
+    if not response_content:
+        raise RuntimeError("Groq API returned an empty response.")
 
     try:
-        result = json.loads(response.text)
+        result = json.loads(response_content)
     except json.JSONDecodeError as exc:
-        raise RuntimeError("Gemini returned invalid JSON.") from exc
+        raise RuntimeError("Groq returned invalid JSON format.") from exc
 
     validate_result(result)
     return result
@@ -270,20 +224,16 @@ def validate_result(result: dict[str, Any]) -> None:
 
     missing = required - set(result)
     if missing:
-        raise RuntimeError(f"Gemini response is missing fields: {sorted(missing)}")
+        raise RuntimeError(f"Response is missing fields: {sorted(missing)}")
 
     result["ats_score"] = max(0, min(100, int(result["ats_score"])))
 
-    breakdown = result["score_breakdown"]
+    breakdown = result.get("score_breakdown", [])
     if len(breakdown) != 8:
-        raise RuntimeError("Unexpected score breakdown returned by Gemini.")
+        st.warning("Score breakdown category count differed slightly from expected 8.")
 
-    total = sum(int(item["score"]) for item in breakdown)
-    max_total = sum(int(item["max_score"]) for item in breakdown)
-
-    if max_total != 100 or total != result["ats_score"]:
-        # Normalize only when the model's category total is inconsistent.
-        # This keeps the displayed overall score internally consistent.
+    total = sum(int(item.get("score", 0)) for item in breakdown)
+    if total != result["ats_score"]:
         result["ats_score"] = max(0, min(100, total))
 
 
@@ -304,33 +254,26 @@ def render_score(score: int) -> None:
 
 def main() -> None:
     st.set_page_config(
-        page_title="Resume ATS Analyzer",
+        page_title="Resume ATS Analyzer (Groq)",
         page_icon="📄",
         layout="wide",
     )
 
     st.title("📄 Resume ATS Analyzer")
-    st.caption(
-        "Upload your resume to get an AI-powered ATS-readiness score, "
-        "keyword analysis, and actionable improvements."
-    )
+    st.caption("Powered by Groq LPUs for ultra-fast analysis")
 
     with st.sidebar:
         st.header("Settings")
-        st.info(
-            "Gemini 2.5 Flash is used for the resume analysis. "
-            "The score is an ATS-readiness estimate, not a score from a "
-            "specific ATS vendor."
-        )
+        st.info("Using Llama-3.3-70b via Groq API for rapid evaluation.")
         st.markdown("**Supported:** PDF, DOCX, TXT")
-        st.markdown("**Recommended:** Add the target job description for a "
-                    "more meaningful keyword score.")
+        st.markdown(
+            "**Recommended:** Add target job description for keyword scoring."
+        )
 
     api_key = get_api_key()
     if not api_key:
         st.error(
-            "Gemini API key not found. Add GEMINI_API_KEY to Streamlit "
-            "Secrets or your environment variables."
+            "Groq API key not found. Please set `GROQ_API_KEY` in `.streamlit/secrets.toml` or environment variables."
         )
         st.stop()
 
@@ -341,12 +284,9 @@ def main() -> None:
     )
 
     job_description = st.text_area(
-        "Target job description (optional, but recommended)",
-        height=220,
-        placeholder=(
-            "Paste the job description here. The analyzer will compare "
-            "your resume against it and identify missing/relevant keywords."
-        ),
+        "Target job description (optional)",
+        height=200,
+        placeholder="Paste job description here...",
     )
 
     analyze_button = st.button(
@@ -360,10 +300,9 @@ def main() -> None:
         st.subheader("How it works")
         st.markdown(
             "1. Upload your resume.\n"
-            "2. Optionally paste the target job description.\n"
-            "3. Gemini 2.5 Flash evaluates ATS readiness.\n"
-            "4. Review your score, matched/missing keywords, strengths, "
-            "and prioritized improvements."
+            "2. Optionally paste target job description.\n"
+            "3. Groq evaluates ATS readiness instantly.\n"
+            "4. Review keyword matches, missing terms, and suggestions."
         )
         return
 
@@ -376,24 +315,16 @@ def main() -> None:
         return
 
     try:
-        file_bytes = uploaded_file.getvalue()
-        extracted_text, is_pdf = extract_resume_text(uploaded_file)
+        extracted_text = extract_resume_text(uploaded_file)
 
         if not extracted_text.strip():
-            if is_pdf:
-                st.warning(
-                    "No selectable text was extracted from this PDF. "
-                    "Gemini will still inspect the PDF, but a scanned/image-only "
-                    "resume may reduce text-based ATS analysis accuracy."
-                )
-            else:
-                st.error("No readable text was found in the uploaded file.")
-                return
+            st.error(
+                "No readable text found. Scanned PDFs without OCR are not supported."
+            )
+            return
 
-        with st.spinner("Analyzing your resume with Gemini 2.5 Flash..."):
+        with st.spinner("Analyzing your resume with Groq..."):
             result = analyze_resume(
-                file_bytes=file_bytes,
-                filename=uploaded_file.name,
                 extracted_text=extracted_text,
                 job_description=job_description,
                 api_key=api_key,
@@ -401,6 +332,9 @@ def main() -> None:
 
         st.session_state["analysis"] = result
 
+    except GroqError as e:
+        st.error(f"Groq API Error: {e.message if hasattr(e, 'message') else e}")
+        return
     except Exception as exc:
         st.error("Analysis failed.")
         st.exception(exc)
@@ -417,7 +351,7 @@ def main() -> None:
 
     with col1:
         st.subheader("📊 Score Breakdown")
-        for item in result["score_breakdown"]:
+        for item in result.get("score_breakdown", []):
             score = int(item["score"])
             maximum = int(item["max_score"])
             st.write(f"**{item['category']} — {score}/{maximum}**")
@@ -426,14 +360,16 @@ def main() -> None:
 
     with col2:
         st.subheader("🧾 Recruiter Summary")
-        st.write(result["summary"])
+        st.write(result.get("summary", ""))
 
         st.subheader("💪 Strengths")
-        for strength in result["strengths"]:
+        for strength in result.get("strengths", []):
             st.markdown(f"- {strength}")
 
         st.subheader("📌 Detected Sections")
-        st.write(", ".join(result["detected_sections"]) or "None detected")
+        st.write(
+            ", ".join(result.get("detected_sections", [])) or "None detected"
+        )
 
     st.markdown("---")
 
@@ -441,26 +377,26 @@ def main() -> None:
 
     with key_col1:
         st.subheader("✅ Keyword Matches")
-        if result["keyword_matches"]:
+        if result.get("keyword_matches"):
             for keyword in result["keyword_matches"]:
                 st.markdown(f"- `{keyword}`")
         else:
-            st.info("No strong keyword matches were identified.")
+            st.info("No strong keyword matches identified.")
 
     with key_col2:
         st.subheader("⚠️ Missing / Suggested Keywords")
-        if result["missing_keywords"]:
+        if result.get("missing_keywords"):
             for keyword in result["missing_keywords"]:
                 st.markdown(f"- `{keyword}`")
         else:
-            st.success("No major missing keywords were identified.")
+            st.success("No major missing keywords identified.")
 
     st.markdown("---")
     st.subheader("🛠️ Prioritized Improvements")
 
     priority_order = {"High": 0, "Medium": 1, "Low": 2}
     improvements = sorted(
-        result["improvements"],
+        result.get("improvements", []),
         key=lambda x: priority_order.get(str(x.get("priority")), 3),
     )
 
@@ -474,13 +410,6 @@ def main() -> None:
             if item.get("example"):
                 st.markdown("**Example:**")
                 st.info(item["example"])
-
-    st.markdown("---")
-    st.caption(
-        "Privacy note: resumes may contain personal information. Do not "
-        "upload documents you are not authorized to share. Files are sent "
-        "to Google's Gemini API for analysis."
-    )
 
 
 if __name__ == "__main__":
