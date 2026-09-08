@@ -264,7 +264,6 @@ def main() -> None:
 
     with st.sidebar:
         st.header("Settings")
-        st.info("Using Llama-3.3-70b via Groq API for rapid evaluation.")
         st.markdown("**Supported:** PDF, DOCX, TXT")
         st.markdown(
             "**Recommended:** Add target job description for keyword scoring."
