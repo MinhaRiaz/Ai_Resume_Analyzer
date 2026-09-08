@@ -10,7 +10,7 @@ from pypdf import PdfReader
 from docx import Document
 
 
-MODEL_NAME = "gemini-2.5-flash"
+MODEL_NAME = "gemini-3.8-flash"
 MAX_FILE_SIZE_MB = 10
 
 RESPONSE_SCHEMA = {
