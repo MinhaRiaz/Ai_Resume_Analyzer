@@ -55,21 +55,6 @@ The AI identifies the strongest aspects of the resume, such as:
 * Relevant keywords
 * Quantified achievements
 
-### 🛠️ Prioritized Improvements
-
-The application provides actionable recommendations organized by priority:
-
-* 🔴 High
-* 🟡 Medium
-* 🟢 Low
-
-Each recommendation includes:
-
-* Area
-* Issue
-* Recommendation
-* Example
-
 ### 📋 Detected Resume Sections
 
 The analyzer detects sections such as:
