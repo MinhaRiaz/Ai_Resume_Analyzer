@@ -1,6 +1,6 @@
 # 📄 Resume ATS Analyzer
 
-An AI-powered **Resume ATS Analyzer** built with **Streamlit** and **Google Gemini 3.6 Flash**.
+An AI-powered **Resume ATS Analyzer** built with **Streamlit** and **Google Gemini 3.8 Flash**.
 
 > 🚀 **[Try the Live App](https://ai-resume-analyzer-app-1.streamlit.app/)**
 
